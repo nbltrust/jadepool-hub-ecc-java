@@ -1,6 +1,5 @@
 package com.jadepool.ecc;
 
-import com.google.gson.*;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.web3j.crypto.Hash;
@@ -38,10 +37,10 @@ public class Ecc {
             throw new Exception("Invalid data!");
         }
 
-        String res = preprocess(data, timestamp);
+        String res = Utils.preprocess(data, timestamp);
         byte[] preSignJsonMessageByteArr = res.getBytes();
         byte[] preSignJsonMessageSha = Hash.sha3(preSignJsonMessageByteArr);
-        JSONObject sig = Utils.sign(preSignJsonMessageSha, this.privateKey);
+        JSONObject sig = EccUtils.sign(preSignJsonMessageSha, this.privateKey);
 
         return sig.toJSONString();
     }
@@ -65,10 +64,10 @@ public class Ecc {
 
         String resultObjectString = responseObject.get("result").toString();
         Long timestamp = (Long) responseObject.get("timestamp");
-        String res = preprocess(resultObjectString, timestamp);
+        String res = Utils.preprocess(resultObjectString, timestamp);
 
         JSONObject sigObject = (JSONObject) responseObject.get("sig");
-        Sign.SignatureData signature = Utils.buildSignature(sigObject);
+        Sign.SignatureData signature = EccUtils.buildSignature(sigObject);
 
         BigInteger pubKeyRecovered = Sign.signedMessageToKey(res.getBytes(), signature);
         BigInteger correctPubKey = new BigInteger(1, Arrays.copyOfRange(Base64.decodeBase64(this.jadePubKey), 1, Base64.decodeBase64(this.jadePubKey).length));
@@ -78,25 +77,6 @@ public class Ecc {
         }
 
         return true;
-    }
-
-    private static String preprocess(String result, Long timestamp) {
-        String res = null;
-        try {
-            Gson g = new GsonBuilder().setPrettyPrinting().create();
-            JsonParser p = new JsonParser();
-            JsonObject inputObj  = g.fromJson(result, JsonObject.class);
-            inputObj.addProperty("timestamp", timestamp.toString());
-            String newStr = g.toJson(inputObj);
-            JsonElement e = p.parse(newStr);
-            EccUtils.sort(e);
-            res = EccUtils.toStr(e);
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-        }
-        return res;
     }
 
     public String getJadePubKey() {

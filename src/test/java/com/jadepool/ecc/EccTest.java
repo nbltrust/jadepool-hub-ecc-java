@@ -211,4 +211,12 @@ public class EccTest {
         assertEquals(28, v.longValue());
     }
 
+    @Test
+    public void testGenerateKeyPair() throws Exception {
+        String privateKey = EccUtils.generatePrivateKey();
+        assertEquals(true, Utils.isBase64(privateKey));
+
+        String publicKey = EccUtils.privateToPublic(privateKey);
+        assertEquals(true, Utils.isBase64(publicKey));
+    }
 }

@@ -1,100 +1,62 @@
 package com.jadepool.ecc;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import org.apache.commons.codec.binary.Base64;
+import org.json.simple.JSONObject;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.crypto.Keys;
+import org.web3j.crypto.Sign;
 
-import java.math.BigDecimal;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
+import java.math.BigInteger;
 
 public class EccUtils {
 
-    static void sort(JsonElement e) {
-        if (e.isJsonNull())
-        {
-            return;
-        }
 
-        if (e.isJsonPrimitive())
-        {
-            return;
-        }
-
-        if (e.isJsonArray())
-        {
-            JsonArray a = e.getAsJsonArray();
-            for (Iterator<JsonElement> it = a.iterator(); it.hasNext();)
-            {
-                sort(it.next());
-            }
-            return;
-        }
-
-        if (e.isJsonObject())
-        {
-            Map<String, JsonElement> tm = new TreeMap<String, JsonElement>(getComparator());
-            for (Map.Entry<String, JsonElement> en : e.getAsJsonObject().entrySet())
-            {
-                tm.put(en.getKey(), en.getValue());
-            }
-
-            for (Map.Entry<String, JsonElement> en : tm.entrySet())
-            {
-                e.getAsJsonObject().remove(en.getKey());
-                e.getAsJsonObject().add(en.getKey(), en.getValue());
-                sort(en.getValue());
-            }
-            return;
-        }
+    /**
+     * Generate a ECC private key
+     * @return string
+     * @throws Exception
+     */
+    public static String generatePrivateKey() throws Exception {
+        BigInteger privKey = Keys.createEcKeyPair().getPrivateKey();
+        String privateKey = Utils.byteArrayToBase64(privKey.toByteArray());
+        return privateKey;
     }
 
-    static Comparator<String> getComparator() {
-        Comparator<String> c = new Comparator<String>() {
-            public int compare(String o1, String o2) {
-                return o1.compareTo(o2);
-            }
-        };
-
-        return c;
+    /**
+     * Derive ECC public key from private key
+     * @param privateKey private Key, in base64 format
+     * @return string
+     */
+    public static String privateToPublic(String privateKey) {
+        BigInteger privKey = new BigInteger(Base64.decodeBase64(privateKey));
+        BigInteger pubKey = Sign.publicKeyFromPrivate(privKey);
+        String publicKey = Utils.byteArrayToBase64(pubKey.toByteArray());
+        return publicKey;
     }
 
-    static String toStr(JsonElement e){
+    static JSONObject sign (byte[] byteArr, String key) {
+        BigInteger privKey = new BigInteger(key,16);
+        BigInteger pubKey = Sign.publicKeyFromPrivate(privKey);
+        ECKeyPair keyPair = new ECKeyPair(privKey, pubKey);
+        Sign.SignatureData sig = Sign.signMessage(byteArr, keyPair, false);
 
-        StringBuilder sb = new StringBuilder();
-        if (e.isJsonArray()) {
-            JsonArray a = e.getAsJsonArray();
-            int counter = 0;
-            for (int i = 0; i < a.size(); i++) {
-                sb.append(counter);
-                sb.append(toStr(a.get(i)));
-                counter++;
-            }
-        } else if (e.isJsonPrimitive()) {
-            if (e.getAsJsonPrimitive().isNumber()) {
-                BigDecimal bd = new BigDecimal(e.toString());
-                sb.append(bd.toString());
-            } else {
-                sb.append(e.getAsString());
-            }
+        JSONObject signature = new JSONObject();
+        signature.put("r", Utils.byteArrayToBase64(sig.getR()));
+        signature.put("s", Utils.byteArrayToBase64(sig.getS()));
+        signature.put("v", sig.getV());
 
-        } else if (e.isJsonObject()) {
-            Map<String, JsonElement> tm = new TreeMap<String, JsonElement>(getComparator());
-            for (Map.Entry<String, JsonElement> en : e.getAsJsonObject().entrySet())
-            {
-                tm.put(en.getKey(), en.getValue());
-            }
+        return signature;
+    }
 
-            for (Map.Entry<String, JsonElement> en : tm.entrySet())
-            {
-                sb.append(en.getKey());
-                sb.append(toStr(en.getValue()));
-            }
-        } else {
-            sb.append(e.getAsString());
-        }
+    static Sign.SignatureData buildSignature (JSONObject o) {
+        Long vObject = (Long) o.get("v");
+        String rObject = (String) o.get("r");
+        String sObject = (String) o.get("s");
+        byte v = vObject.byteValue();
+        byte[] r = Base64.decodeBase64(rObject);
+        byte[] s = Base64.decodeBase64(sObject);
+        Sign.SignatureData signature = new Sign.SignatureData(v, r, s);
 
-        return sb.toString();
+        return signature;
     }
 }

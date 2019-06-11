@@ -1,10 +1,13 @@
 package com.jadepool.ecc;
 
-import org.json.simple.JSONObject;
-import org.web3j.crypto.ECKeyPair;
-import org.web3j.crypto.Sign;
+import com.google.gson.*;
 import org.apache.commons.codec.binary.Base64;
-import java.math.BigInteger;
+
+import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Utils {
 
@@ -23,29 +26,119 @@ public class Utils {
         return byteArrayToHex(Base64.decodeBase64(data));
     }
 
-    static JSONObject sign (byte[] byteArr, String key) {
-        BigInteger privKey = new BigInteger(key,16);
-        BigInteger pubKey = Sign.publicKeyFromPrivate(privKey);
-        ECKeyPair keyPair = new ECKeyPair(privKey, pubKey);
-        Sign.SignatureData sig = Sign.signMessage(byteArr, keyPair, false);
-
-        JSONObject signature = new JSONObject();
-        signature.put("r", Utils.byteArrayToBase64(sig.getR()));
-        signature.put("s", Utils.byteArrayToBase64(sig.getS()));
-        signature.put("v", sig.getV());
-
-        return signature;
+    public static boolean isBase64 (String data) {
+        java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+        try {
+            decoder.decode(data);
+            return true;
+        } catch(IllegalArgumentException ex) {
+            return false;
+        }
     }
 
-    static Sign.SignatureData buildSignature (JSONObject o) {
-        Long vObject = (Long) o.get("v");
-        String rObject = (String) o.get("r");
-        String sObject = (String) o.get("s");
-        byte v = vObject.byteValue();
-        byte[] r = Base64.decodeBase64(rObject);
-        byte[] s = Base64.decodeBase64(sObject);
-        Sign.SignatureData signature = new Sign.SignatureData(v, r, s);
+    static String preprocess(String result, Long timestamp) {
+        String res = null;
+        try {
+            Gson g = new GsonBuilder().setPrettyPrinting().create();
+            JsonParser p = new JsonParser();
+            JsonObject inputObj  = g.fromJson(result, JsonObject.class);
+            inputObj.addProperty("timestamp", timestamp.toString());
+            String newStr = g.toJson(inputObj);
+            JsonElement e = p.parse(newStr);
+            sort(e);
+            res = toStr(e);
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+        return res;
+    }
 
-        return signature;
+    static void sort(JsonElement e) {
+        if (e.isJsonNull())
+        {
+            return;
+        }
+
+        if (e.isJsonPrimitive())
+        {
+            return;
+        }
+
+        if (e.isJsonArray())
+        {
+            JsonArray a = e.getAsJsonArray();
+            for (Iterator<JsonElement> it = a.iterator(); it.hasNext();)
+            {
+                sort(it.next());
+            }
+            return;
+        }
+
+        if (e.isJsonObject())
+        {
+            Map<String, JsonElement> tm = new TreeMap<String, JsonElement>(getComparator());
+            for (Map.Entry<String, JsonElement> en : e.getAsJsonObject().entrySet())
+            {
+                tm.put(en.getKey(), en.getValue());
+            }
+
+            for (Map.Entry<String, JsonElement> en : tm.entrySet())
+            {
+                e.getAsJsonObject().remove(en.getKey());
+                e.getAsJsonObject().add(en.getKey(), en.getValue());
+                sort(en.getValue());
+            }
+            return;
+        }
+    }
+
+    static Comparator<String> getComparator() {
+        Comparator<String> c = new Comparator<String>() {
+            public int compare(String o1, String o2) {
+                return o1.compareTo(o2);
+            }
+        };
+
+        return c;
+    }
+
+    static String toStr(JsonElement e){
+
+        StringBuilder sb = new StringBuilder();
+        if (e.isJsonArray()) {
+            JsonArray a = e.getAsJsonArray();
+            int counter = 0;
+            for (int i = 0; i < a.size(); i++) {
+                sb.append(counter);
+                sb.append(toStr(a.get(i)));
+                counter++;
+            }
+        } else if (e.isJsonPrimitive()) {
+            if (e.getAsJsonPrimitive().isNumber()) {
+                BigDecimal bd = new BigDecimal(e.toString());
+                sb.append(bd.toString());
+            } else {
+                sb.append(e.getAsString());
+            }
+
+        } else if (e.isJsonObject()) {
+            Map<String, JsonElement> tm = new TreeMap<String, JsonElement>(getComparator());
+            for (Map.Entry<String, JsonElement> en : e.getAsJsonObject().entrySet())
+            {
+                tm.put(en.getKey(), en.getValue());
+            }
+
+            for (Map.Entry<String, JsonElement> en : tm.entrySet())
+            {
+                sb.append(en.getKey());
+                sb.append(toStr(en.getValue()));
+            }
+        } else {
+            sb.append(e.getAsString());
+        }
+
+        return sb.toString();
     }
 }
