@@ -1,10 +1,8 @@
 package com.jadepool.ecc;
 
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 import org.junit.Test;
-
 import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class EccTest {
 
@@ -89,7 +87,8 @@ public class EccTest {
                 "        \"sid\": \"5de9plikE3XKN-4sAAAB\"\n" +
                 "    }\n" +
                 "}";
-        ecc.verify(orderCallback);
+        boolean isValid = ecc.verify(orderCallback);
+        assertTrue(isValid);
     }
 
     @Test
@@ -163,7 +162,8 @@ public class EccTest {
                 "    \"id\": \"5c7743ab82f73d886a337e00\"\n" +
                 "  }\n" +
                 "}";
-        ecc.verify(auditCallback);
+        boolean isValid = ecc.verify(auditCallback);
+        assertTrue(isValid);
     }
 
     @Test
@@ -190,33 +190,26 @@ public class EccTest {
                 "        \"sid\": \"FHvzET7r64eyXYgtAAAD\"\n" +
                 "    }\n" +
                 "}";
-        ecc.verify(response);
+        boolean isValid = ecc.verify(response);
+        assertTrue(isValid);
     }
 
     @Test
     public void testSign() throws Exception {
-        Ecc ecc = new Ecc("feDhgnJGkNMWSmPlbMtC+4DmUruJAtdCu4j3Vxu2CWM=");
-        String requestData = "{\"sequence\":0,\"to\":\"awesome3\",\"type\":\"EOS\",\"value\":\"0.01\"}";
-        Long timestamp = new Long(1558083677261l);
+        Ecc ecc = new Ecc("cYjKmvthKqVuFI29l5Xo+LHtkfJlIs0YnwEwXawW4NY=");
+        String requestData = "{\"type\":\"TRX\"}";
+        Long timestamp = new Long(1567078754623l);
         String sig = ecc.sign(requestData, timestamp);
 
-        JSONParser parser = new JSONParser();
-        JSONObject sigObject = (JSONObject)parser.parse(sig);
-        String r = (String)sigObject.get("r");
-        String s = (String)sigObject.get("s");
-        Long v = (Long)sigObject.get("v");
-
-        assertEquals("ydP2CmLWPNNKGANd32xaxkqTpDJIQ9bQekiY7NrHaMY=", r);
-        assertEquals("EgdEGRUgpeHEXZAK46xuUEOypygW1vdMTr9kfrXXbEo=", s);
-        assertEquals(28, v.longValue());
+        assertEquals("4797a0375f4fb1f303714c3871f232ae8f4ce77f110310d92340bca953ee656674f59d3a12034393538d5a783520d830b977e282c76f0faf21fcf363835300c5", sig);
     }
 
     @Test
     public void testGenerateKeyPair() throws Exception {
         String privateKey = EccUtils.generatePrivateKey();
-        assertEquals(true, Utils.isBase64(privateKey));
+        assertTrue(Utils.isBase64(privateKey));
 
         String publicKey = EccUtils.privateToPublic(privateKey);
-        assertEquals(true, Utils.isBase64(publicKey));
+        assertTrue(Utils.isBase64(publicKey));
     }
 }

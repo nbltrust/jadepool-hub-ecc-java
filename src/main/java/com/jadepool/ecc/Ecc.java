@@ -42,7 +42,10 @@ public class Ecc {
         byte[] preSignJsonMessageSha = Hash.sha3(preSignJsonMessageByteArr);
         JSONObject sig = EccUtils.sign(preSignJsonMessageSha, this.privateKey);
 
-        return sig.toJSONString();
+        String r = (String)sig.get("r");
+        String s = (String)sig.get("s");
+
+        return Utils.base64ToHex(r) + Utils.base64ToHex(s);
     }
 
     /**
